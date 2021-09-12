@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using t = System.Timers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Timers;
 
 namespace swfd.core
 {
@@ -10,7 +12,8 @@ namespace swfd.core
     {
         private int executionCount = 0;
         private readonly ILogger<TimedHostedService> _logger;
-        private Timer _timer;
+        private readonly object _locker = new object();
+        private t.Timer _timer;
 
         public TimedHostedService(ILogger<TimedHostedService> logger)
         {
@@ -21,13 +24,15 @@ namespace swfd.core
         {
             _logger.LogInformation("Timed Hosted Service running.");
 
-            _timer = new Timer(
-                DoWork, 
-                stoppingToken,
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(5));
+            _timer = new t.Timer();
+            _timer.Elapsed += OnTimerElapsed;
 
             return Task.CompletedTask;
+        }
+
+        private void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private void DoWork(object state)
@@ -38,18 +43,21 @@ namespace swfd.core
                 _logger.LogInformation("Timer cancellation detected");
 
                 StopTimer();
-            } else {
-                
-                var count = Interlocked.Increment(ref executionCount);
+            } else if (Monitor.TryEnter(_locker))
+            {
+                _logger.LogInformation("Timed Hosted Service started");
 
-                _logger.LogInformation("Timed Hosted Service is working. Count: {Count}", count);
+                //do work here
+
+            } else {
+                _logger.LogError("Enterlock error on timer.");
             }
         }
 
         private void StopTimer()
         {
             _timer?.Change(Timeout.Infinite, 0);
-            
+
             _logger.LogInformation("Timer stopped.");
         }
 
