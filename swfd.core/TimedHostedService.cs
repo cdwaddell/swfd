@@ -11,6 +11,7 @@ namespace swfd.core
     {
         private int executionCount = 0;
         private readonly ILogger<TimedHostedService> _logger;
+        private readonly object _locker = new object();
         private Timer _timer;
 
         public TimedHostedService(ILogger<TimedHostedService> logger)
@@ -33,17 +34,13 @@ namespace swfd.core
 
         private void DoWork(object state)
         {
-            if(state is CancellationToken token)
+            if(!(state is CancellationToken token) || token.IsCancellationRequested)
             {
-                if(token.IsCancellationRequested)
-                {
-                    _logger.LogInformation("Timer cancellation detected");
+                _logger.LogInformation("Timer cancellation detected");
+                StopTimer();
+            } else {
+                Execute(token);
 
-                    StopTimer();
-                } else {
-                    Execute(token);
-
-                }
             }
         }
 
@@ -52,7 +49,7 @@ namespace swfd.core
         private void StopTimer()
         {
             _timer?.Change(Timeout.Infinite, 0);
-            
+
             _logger.LogInformation("Timer stopped.");
         }
 
