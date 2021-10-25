@@ -11,7 +11,7 @@ namespace swfd.test
         {
             var logger = new TestLogger<PowershellExecutionEngine>();
             var engine = new PowershellExecutionEngine(logger);
-            engine.Execute("param($param1) $d = get-date; $s = 'test string value'; $d; $s; $param1;", ("param1", "Some Value"));
+            var output = engine.Execute("param($param1) $d = get-date; $s = 'test string value'; $d; $s; $param1;", new WorkflowPayload(), x => "Some Value");
         }
     }
 }
