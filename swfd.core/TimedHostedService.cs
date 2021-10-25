@@ -6,7 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace swfd.core
 {
-    public class TimedHostedService : IHostedService, IDisposable
+
+    public abstract class TimedHostedService : IHostedService, IDisposable
     {
         private int executionCount = 0;
         private readonly ILogger<TimedHostedService> _logger;
@@ -17,7 +18,7 @@ namespace swfd.core
             _logger = logger;
         }
 
-        public Task StartAsync(CancellationToken stoppingToken)
+        public virtual Task StartAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("Timed Hosted Service running.");
 
@@ -32,19 +33,21 @@ namespace swfd.core
 
         private void DoWork(object state)
         {
-
-            if(state is CancellationToken token && token.IsCancellationRequested)
+            if(state is CancellationToken token)
             {
-                _logger.LogInformation("Timer cancellation detected");
+                if(token.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Timer cancellation detected");
 
-                StopTimer();
-            } else {
-                
-                var count = Interlocked.Increment(ref executionCount);
+                    StopTimer();
+                } else {
+                    Execute(token);
 
-                _logger.LogInformation("Timed Hosted Service is working. Count: {Count}", count);
+                }
             }
         }
+
+        protected abstract void Execute(CancellationToken token);
 
         private void StopTimer()
         {
@@ -62,11 +65,11 @@ namespace swfd.core
             return Task.CompletedTask;
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             StopTimer();
-
             _timer?.Dispose();
+            _timer = null;
         }
     }
 }
